@@ -111,7 +111,26 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Author registered successfully"))
 }
+func Login(w http.ResponseWriter, r *http.Request) {
+	var creds Credentials
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+	pass, exists := CredList[creds.Username]
+	if !exists || pass != creds.Password {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+	_, tokenString, _ := tokenAuth.Encode(map[string]interface{}{"username": creds.Username})
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(fmt.Sprintf(`{"token": "%s"}`, tokenString)))
+}
 
+func Logout(w http.ResponseWriter, r *http.Request) {
+	// Stateless JWT: instruct client to discard token
+	w.Write([]byte("Logged out. Please discard the token on client side."))
+}
 func ListAuthors(w http.ResponseWriter, r *http.Request) {
 	var authors []Author
 	for _, ab := range AuthorList {
@@ -146,6 +165,8 @@ func main() {
 		fmt.Fprintf(w, "Welcome to the bookstore API!")
 	})
 	r.Post("/signup", SignUp)
+	r.Post("/login", Login)
+	r.Get("/logout", Logout)
 	r.Get("/authors", ListAuthors)
 	r.Delete("/author/{name}", DeleteAuthor)
 
