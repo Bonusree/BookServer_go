@@ -83,7 +83,7 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := SmStr(req.Username) // key by username
+	key := SmStr(req.Username)
 	AuthorList[key] = AuthorBooks{Author: req, Books: []Book{}}
 	CredList[req.Username] = req.Password
 
@@ -188,7 +188,7 @@ func GetBooks(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(books)
 }
 func UpdateBook(w http.ResponseWriter, r *http.Request) {
-	// Get claims from JWT token in context
+
 	_, claims, _ := jwtauth.FromContext(r.Context())
 	username, ok := claims["username"].(string)
 	if !ok || username == "" {
@@ -196,21 +196,18 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get ISBN from URL param
 	isbn := chi.URLParam(r, "isbn")
 	if isbn == "" {
 		http.Error(w, "ISBN is required", http.StatusBadRequest)
 		return
 	}
 
-	// Find book by ISBN
 	book, exists := BookList[isbn]
 	if !exists {
 		http.Error(w, "Book not found", http.StatusNotFound)
 		return
 	}
 
-	// Parse input JSON - partial update allowed
 	var updateData struct {
 		Name  *string `json:"book_name,omitempty"`
 		Genre *string `json:"genre,omitempty"`
@@ -222,7 +219,6 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update fields if given
 	if updateData.Name != nil {
 		book.Name = *updateData.Name
 	}
@@ -233,7 +229,6 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		book.Pub = *updateData.Pub
 	}
 
-	// Save updated book
 	BookList[isbn] = book
 
 	w.WriteHeader(http.StatusOK)
@@ -242,14 +237,12 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 func DeleteBook(w http.ResponseWriter, r *http.Request) {
 	isbn := chi.URLParam(r, "isbn")
 
-	// Check if the book exists
 	_, exists := BookList[isbn]
 	if !exists {
 		http.Error(w, "Book not found", http.StatusNotFound)
 		return
 	}
 
-	// Get the author from JWT
 	_, claims, _ := jwtauth.FromContext(r.Context())
 	username, ok := claims["username"].(string)
 	if !ok || username == "" {
@@ -257,7 +250,6 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure the book belongs to the requesting author
 	authorKey := SmStr(username)
 	authorData, found := AuthorList[authorKey]
 	if !found {
@@ -265,7 +257,6 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Remove the book from the author's list
 	newBookList := []Book{}
 	for _, b := range authorData.Books {
 		if b.ISBN != isbn {
