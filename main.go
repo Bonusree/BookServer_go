@@ -13,10 +13,8 @@ import (
 	"github.com/goccy/go-json"
 )
 
-// JWT secret and token instance
 var tokenAuth = jwtauth.New("HS256", []byte("secret_key"), nil)
 
-// Data Structures
 type Author struct {
 	Name     string `json:"name"`
 	Home     string `json:"home"`
@@ -51,12 +49,10 @@ var BookList BookDB
 var AuthorList AuthorDB
 var CredList CredDB
 
-// Helper functions
 func CapToSmall(s string) string { return strings.ToLower(s) }
 func RmSpaces(s string) string   { return strings.ReplaceAll(s, " ", "") }
 func SmStr(s string) string      { return CapToSmall(RmSpaces(s)) }
 
-// Initialize with admin
 func Init() {
 	BookList = make(BookDB)
 	AuthorList = make(AuthorDB)
@@ -72,7 +68,6 @@ func Init() {
 	CredList[admin.Username] = admin.Password
 }
 
-// Handlers
 func SignUp(w http.ResponseWriter, r *http.Request) {
 	var req Author
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -192,7 +187,100 @@ func GetBooks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(books)
 }
+func UpdateBook(w http.ResponseWriter, r *http.Request) {
+	// Get claims from JWT token in context
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	username, ok := claims["username"].(string)
+	if !ok || username == "" {
+		http.Error(w, "Invalid token data", http.StatusBadRequest)
+		return
+	}
 
+	// Get ISBN from URL param
+	isbn := chi.URLParam(r, "isbn")
+	if isbn == "" {
+		http.Error(w, "ISBN is required", http.StatusBadRequest)
+		return
+	}
+
+	// Find book by ISBN
+	book, exists := BookList[isbn]
+	if !exists {
+		http.Error(w, "Book not found", http.StatusNotFound)
+		return
+	}
+
+	// Parse input JSON - partial update allowed
+	var updateData struct {
+		Name  *string `json:"book_name,omitempty"`
+		Genre *string `json:"genre,omitempty"`
+		Pub   *string `json:"pub,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&updateData); err != nil {
+		http.Error(w, "Invalid JSON data", http.StatusBadRequest)
+		return
+	}
+
+	// Update fields if given
+	if updateData.Name != nil {
+		book.Name = *updateData.Name
+	}
+	if updateData.Genre != nil {
+		book.Genre = *updateData.Genre
+	}
+	if updateData.Pub != nil {
+		book.Pub = *updateData.Pub
+	}
+
+	// Save updated book
+	BookList[isbn] = book
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Book updated successfully"))
+}
+func DeleteBook(w http.ResponseWriter, r *http.Request) {
+	isbn := chi.URLParam(r, "isbn")
+
+	// Check if the book exists
+	_, exists := BookList[isbn]
+	if !exists {
+		http.Error(w, "Book not found", http.StatusNotFound)
+		return
+	}
+
+	// Get the author from JWT
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	username, ok := claims["username"].(string)
+	if !ok || username == "" {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	// Ensure the book belongs to the requesting author
+	authorKey := SmStr(username)
+	authorData, found := AuthorList[authorKey]
+	if !found {
+		http.Error(w, "Author not found", http.StatusNotFound)
+		return
+	}
+
+	// Remove the book from the author's list
+	newBookList := []Book{}
+	for _, b := range authorData.Books {
+		if b.ISBN != isbn {
+			newBookList = append(newBookList, b)
+		}
+	}
+	authorData.Books = newBookList
+	AuthorList[authorKey] = authorData
+
+	// Delete the book from BookList
+	delete(BookList, isbn)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Book deleted successfully"))
+}
 func DeleteAuthor(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	key := SmStr(name)
@@ -210,7 +298,6 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, middleware.Logger, middleware.Recoverer, middleware.URLFormat)
 
-	// Public routes
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Welcome to the bookstore API!")
 	})
@@ -219,13 +306,13 @@ func main() {
 	r.Get("/logout", Logout)
 	r.Get("/authors", ListAuthors)
 	r.Get("/books", GetBooks)
-	// Protected routes
 	r.Group(func(protected chi.Router) {
 		protected.Use(jwtauth.Verifier(tokenAuth))
 		protected.Use(jwtauth.Authenticator(tokenAuth))
 		protected.Post("/addbooks", AddBooks)
+		protected.Put("/updatebook/{isbn}", UpdateBook)
 		protected.Delete("/author/{name}", DeleteAuthor)
-		//protected.Get("/books", GetBooks)
+		protected.Delete("/deletebook/{isbn}", DeleteBook)
 	})
 
 	log.Println("Server running at http://localhost:8080")
