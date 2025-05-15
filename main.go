@@ -281,17 +281,6 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Book deleted successfully"))
 }
-func DeleteAuthor(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
-	key := SmStr(name)
-	if _, exists := AuthorList[key]; !exists {
-		http.Error(w, "Author not found", http.StatusNotFound)
-		return
-	}
-	delete(AuthorList, key)
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Author deleted successfully"))
-}
 
 func main() {
 	Init()
@@ -311,7 +300,6 @@ func main() {
 		protected.Use(jwtauth.Authenticator(tokenAuth))
 		protected.Post("/addbooks", AddBooks)
 		protected.Put("/updatebook/{isbn}", UpdateBook)
-		protected.Delete("/author/{name}", DeleteAuthor)
 		protected.Delete("/deletebook/{isbn}", DeleteBook)
 	})
 
