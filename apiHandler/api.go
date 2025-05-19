@@ -167,12 +167,12 @@ func RunServer(Port int) {
 	r.Get("/books", GetBooks)
 	r.Group(func(protected chi.Router) {
 		protected.Use(jwtauth.Verifier(authHandler.TokenAuth))
-		protected.Use(jwtauth.Authenticator(authHandler.TokenAuth))
+		protected.Use(jwtauth.Authenticator)
 		protected.Post("/addbooks", AddBooks)
 		protected.Put("/updatebook/{isbn}", UpdateBook)
 		protected.Delete("/deletebook/{isbn}", DeleteBook)
 	})
 
-	log.Println("Server running at http://localhost:8080")
-	http.ListenAndServe("localhost:8080", r)
+	log.Printf("Server running at http://localhost:%d\n", Port)
+	http.ListenAndServe(fmt.Sprintf("localhost:%d", Port), r)
 }

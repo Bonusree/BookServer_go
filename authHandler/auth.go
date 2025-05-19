@@ -45,7 +45,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	expirationTime := time.Now().Add(15 * time.Minute)
-	_, tokenString, err := tokenAuth.Encode(map[string]interface{}{
+	_, tokenString, err := TokenAuth.Encode(map[string]interface{}{
 		"username": cred.Username,
 		"exp":      expirationTime.Unix(),
 	})
