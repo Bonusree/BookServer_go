@@ -1,7 +1,6 @@
 package dataHandler
 
 import (
-	"github.com/goccy/go-json"
 	"strings"
 )
 

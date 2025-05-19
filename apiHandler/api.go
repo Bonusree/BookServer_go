@@ -2,21 +2,19 @@ package apiHandler
 
 import (
 	"fmt"
+	"github.com/Bonusree/BookServer_go/authHandler"
 	"github.com/Bonusree/BookServer_go/dataHandler"
-	"log"
-	"net/http"
-	"strings"
-	"time"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/goccy/go-json"
+	"log"
+	"net/http"
 )
 
 func ListAuthors(w http.ResponseWriter, r *http.Request) {
-	var authors []Author
-	for _, ab := range AuthorList {
+	var authors []dataHandler.Author
+	for _, ab := range dataHandler.AuthorList {
 		authors = append(authors, ab.Author)
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -36,14 +34,14 @@ func AddBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var books []Book
+	var books []dataHandler.Book
 	if err := json.NewDecoder(r.Body).Decode(&books); err != nil {
 		http.Error(w, "Invalid book data", http.StatusBadRequest)
 		return
 	}
 
-	authorKey := SmStr(authorUsername)
-	authorBooks, exists := AuthorList[authorKey]
+	authorKey := dataHandler.SmStr(authorUsername)
+	authorBooks, exists := dataHandler.AuthorList[authorKey]
 	if !exists {
 		http.Error(w, "Author not found", http.StatusNotFound)
 		return
@@ -51,18 +49,18 @@ func AddBooks(w http.ResponseWriter, r *http.Request) {
 
 	for _, book := range books {
 		book.Authors = append(book.Authors, authorBooks.Author)
-		BookList[book.ISBN] = book
+		dataHandler.BookList[book.ISBN] = book
 		authorBooks.Books = append(authorBooks.Books, book)
 	}
-	AuthorList[authorKey] = authorBooks
+	dataHandler.AuthorList[authorKey] = authorBooks
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Books added successfully"))
 }
 
 func GetBooks(w http.ResponseWriter, r *http.Request) {
-	var books []Book
-	for _, b := range BookList {
+	var books []dataHandler.Book
+	for _, b := range dataHandler.BookList {
 		books = append(books, b)
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -83,7 +81,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	book, exists := BookList[isbn]
+	book, exists := dataHandler.BookList[isbn]
 	if !exists {
 		http.Error(w, "Book not found", http.StatusNotFound)
 		return
@@ -110,7 +108,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		book.Pub = *updateData.Pub
 	}
 
-	BookList[isbn] = book
+	dataHandler.BookList[isbn] = book
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Book updated successfully"))
@@ -118,7 +116,7 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 func DeleteBook(w http.ResponseWriter, r *http.Request) {
 	isbn := chi.URLParam(r, "isbn")
 
-	_, exists := BookList[isbn]
+	_, exists := dataHandler.BookList[isbn]
 	if !exists {
 		http.Error(w, "Book not found", http.StatusNotFound)
 		return
@@ -131,24 +129,24 @@ func DeleteBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authorKey := SmStr(username)
-	authorData, found := AuthorList[authorKey]
+	authorKey := dataHandler.SmStr(username)
+	authorData, found := dataHandler.AuthorList[authorKey]
 	if !found {
 		http.Error(w, "Author not found", http.StatusNotFound)
 		return
 	}
 
-	newBookList := []Book{}
+	newBookList := []dataHandler.Book{}
 	for _, b := range authorData.Books {
 		if b.ISBN != isbn {
 			newBookList = append(newBookList, b)
 		}
 	}
 	authorData.Books = newBookList
-	AuthorList[authorKey] = authorData
+	dataHandler.AuthorList[authorKey] = authorData
 
 	// Delete the book from BookList
-	delete(BookList, isbn)
+	delete(dataHandler.BookList, isbn)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Book deleted successfully"))
@@ -162,14 +160,14 @@ func RunServer(Port int) {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Welcome to the bookstore API!")
 	})
-	r.Post("/signup", SignUp)
-	r.Post("/login", Login)
-	r.Get("/logout", Logout)
+	r.Post("/signup", authHandler.SignUp)
+	r.Post("/login", authHandler.Login)
+	r.Get("/logout", authHandler.Logout)
 	r.Get("/authors", ListAuthors)
 	r.Get("/books", GetBooks)
 	r.Group(func(protected chi.Router) {
-		protected.Use(jwtauth.Verifier(tokenAuth))
-		protected.Use(jwtauth.Authenticator(tokenAuth))
+		protected.Use(jwtauth.Verifier(authHandler.TokenAuth))
+		protected.Use(jwtauth.Authenticator(authHandler.TokenAuth))
 		protected.Post("/addbooks", AddBooks)
 		protected.Put("/updatebook/{isbn}", UpdateBook)
 		protected.Delete("/deletebook/{isbn}", DeleteBook)

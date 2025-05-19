@@ -1,22 +1,17 @@
 package authHandler
 
 import (
-	"fmt"
-	"log"
-	"net/http"
-	"strings"
-	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/Bonusree/BookServer_go/dataHandler"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/goccy/go-json"
+	"net/http"
+	"time"
 )
 
-var tokenAuth = jwtauth.New("HS256", []byte("secret_key"), nil)
+var TokenAuth = jwtauth.New("HS256", []byte("secret_key"), nil)
 
 func SignUp(w http.ResponseWriter, r *http.Request) {
-	var req Author
+	var req dataHandler.Author
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
@@ -25,26 +20,26 @@ func SignUp(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "All fields are required", http.StatusBadRequest)
 		return
 	}
-	if _, exists := CredList[req.Username]; exists {
+	if _, exists := dataHandler.CredList[req.Username]; exists {
 		http.Error(w, "Username already exists", http.StatusBadRequest)
 		return
 	}
 
-	key := SmStr(req.Username)
-	AuthorList[key] = AuthorBooks{Author: req, Books: []Book{}}
-	CredList[req.Username] = req.Password
+	key := dataHandler.SmStr(req.Username)
+	dataHandler.AuthorList[key] = dataHandler.AuthorBooks{Author: req, Books: []dataHandler.Book{}}
+	dataHandler.CredList[req.Username] = req.Password
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Author registered successfully"))
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
-	var cred Credentials
+	var cred dataHandler.Credentials
 	if err := json.NewDecoder(r.Body).Decode(&cred); err != nil {
 		http.Error(w, "Cannot decode data", http.StatusBadRequest)
 		return
 	}
-	password, exists := CredList[cred.Username]
+	password, exists := dataHandler.CredList[cred.Username]
 	if !exists || password != cred.Password {
 		http.Error(w, "Invalid credentials", http.StatusBadRequest)
 		return
