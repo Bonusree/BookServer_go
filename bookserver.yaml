@@ -1,17 +1,19 @@
 # Deployment
 apiVersion: apps/v1
-kind: Deployment
+kind: Deployment # "replicationcontroller for create replica
 metadata:
-  name: bookserver-deployment
+  name: bookserver-deployment #pod name
 spec:
-  replicas: 1
+  replicas: 3 # number of pods
   selector:
     matchLabels:
       app: bookserver
   template:
     metadata:
+      name: testpod #pod name
       labels:
         app: bookserver
+        company:  appscode
     spec:
       containers:
         - name: bookserver

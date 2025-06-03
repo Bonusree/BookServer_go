@@ -1,0 +1,29 @@
+# pod1.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-one
+spec:
+  containers:
+    - name: container-one
+      image: nginx
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-two
+spec:
+  containers:
+    - name: container-two
+      image: httpd
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-three
+spec:
+  containers:
+    - name: container-three
+      image: redis
